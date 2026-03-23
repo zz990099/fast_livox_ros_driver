@@ -1,0 +1,80 @@
+name: ROS 2 Build & Test
+
+on:
+  pull_request:
+    branches: [ master ]
+  push:
+    branches: [ master ]
+
+jobs:
+  build_test:
+    name: ${{ matrix.ros_distro }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 按需增减：这些是当前仍常用/受支持的 ROS 2 发行版
+        ros_distro: [ humble, iron, jazzy, kilted, rolling ]
+
+    # 直接用官方 Docker Hub 的 ROS 镜像（例如 ros:humble）
+    container:
+      image: ros:${{ matrix.ros_distro }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build & test tooling
+        shell: bash
+        run: |
+          set -euxo pipefail
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            python3-pip \
+            python3-rosdep \
+            python3-colcon-common-extensions \
+            python3-vcstool \
+            git \
+            cmake \
+            build-essential
+          rm -rf /var/lib/apt/lists/*
+
+      - name: Build workspace (fast_livox_ros_driver)
+        shell: bash
+        run: |
+          source /opt/ros/${{ matrix.ros_distro }}/setup.bash
+
+          # Install Livox-SDK2 from source (per README)
+          # NOTE: this adds time to CI but ensures the required SDK is present.
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates \
+            git \
+            cmake \
+            build-essential
+          rm -rf /var/lib/apt/lists/*
+
+          git clone --depth 1 https://github.com/liyufan/Livox-SDK2.git /tmp/Livox-SDK2
+          cmake -S /tmp/Livox-SDK2 -B /tmp/Livox-SDK2/build
+          cmake --build /tmp/Livox-SDK2/build -j"$(nproc)"
+          cmake --install /tmp/Livox-SDK2/build
+
+          # Refresh dynamic linker cache so runtime can find /usr/local/lib/*.so
+          ldconfig
+
+          mkdir -p /root/ws/src
+          # 只把当前仓库内容拷到工作区（避免把整个 monorepo 都带进来）
+          cp -a . /root/ws/src/fast_livox_ros_driver
+
+          cd /root/ws
+
+          colcon build --event-handlers console_direct+ --packages-select fast_livox_ros_driver
+
+      - name: Test
+        shell: bash
+        run: |
+          source /opt/ros/${{ matrix.ros_distro }}/setup.bash
+
+          source /root/ws/install/setup.bash
+          cd /root/ws
+          colcon test --event-handlers console_direct+ --packages-select fast_livox_ros_driver
+          colcon test-result --verbose

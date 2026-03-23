@@ -1,0 +1,9 @@
+/**:
+  ros__parameters:
+    frame_id: livox_frame
+    lidar_ip: "192.168.1.12"
+    config_file_path: ""
+    pointcloud_topic: /livox/lidar
+    imu_topic: /livox/imu
+    pointcloud_qos_depth: 10
+    imu_qos_depth: 100
