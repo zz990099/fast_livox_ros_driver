@@ -1,0 +1,48 @@
+name: Create Hardware Testing Help-Wanted Issue
+
+on:
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  create-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create help-wanted issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `Currently, \`fast_livox_ros_driver\` has only been tested on the following platforms:
+
+            | Platform | Architecture |
+            |---|---|
+            | RK3588 | ARM (aarch64) |
+            | Intel i7-11800H | x86_64 |
+
+            We would love to know how this driver performs on other hardware. If you have access to a different platform (e.g., Raspberry Pi, NVIDIA Jetson, other ARM SoCs, AMD CPUs, etc.), please help us test it!
+
+            **How to help:**
+
+            1. Follow the [build instructions](https://github.com/${{ github.repository }}#building-from-source) to build the driver on your platform.
+            2. Run the driver with a Livox LiDAR and compare CPU usage against [\`livox_ros_driver2\`](https://github.com/Livox-SDK/livox_ros_driver2).
+            3. Report your results as a comment below, including:
+               - Platform / CPU model and architecture
+               - ROS 2 distro and OS version
+               - CPU usage for both drivers (if measurable)
+               - Any build or runtime issues
+
+            If you would like to contribute your results to the README, a PR is very welcome!
+
+            Thank you for helping improve this project 🙏`;
+
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Help Wanted: Test on additional hardware platforms',
+              body: body,
+              labels: ['help wanted'],
+            });
+
+            console.log(`Created issue #${issue.data.number}: ${issue.data.html_url}`);
