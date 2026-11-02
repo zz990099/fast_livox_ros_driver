@@ -54,7 +54,9 @@ jobs:
           rm -rf /var/lib/apt/lists/*
 
           git clone --depth 1 https://github.com/Livox-SDK/Livox-SDK2.git /tmp/Livox-SDK2
-          cmake -S /tmp/Livox-SDK2 -B /tmp/Livox-SDK2/build
+          # The SDK declares CMake 3.0 policies; CMake 4 in Lyrical requires >= 3.5.
+          cmake -S /tmp/Livox-SDK2 -B /tmp/Livox-SDK2/build \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           cmake --build /tmp/Livox-SDK2/build -j"$(nproc)"
           cmake --install /tmp/Livox-SDK2/build
 
