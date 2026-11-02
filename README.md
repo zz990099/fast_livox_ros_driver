@@ -48,9 +48,12 @@ git clone --depth 1 --branch v1.3.1 https://github.com/Livox-SDK/Livox-SDK2.git
 cd ./Livox-SDK2/
 mkdir build
 cd build
-cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5 && make -j
+cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_CXX_FLAGS="-include cstdint" && make -j
 sudo make install
 ```
+
+The SDK configure flags support CMake 4 and supply the `<cstdint>` header
+omitted by SDK v1.3.1 when building with newer compilers.
 
 2. Clone the repository into your workspace `src/`:
 
