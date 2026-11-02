@@ -53,7 +53,7 @@ jobs:
             build-essential
           rm -rf /var/lib/apt/lists/*
 
-          git clone --depth 1 https://github.com/liyufan/Livox-SDK2.git /tmp/Livox-SDK2
+          git clone --depth 1 https://github.com/Livox-SDK/Livox-SDK2.git /tmp/Livox-SDK2
           cmake -S /tmp/Livox-SDK2 -B /tmp/Livox-SDK2/build
           cmake --build /tmp/Livox-SDK2/build -j"$(nproc)"
           cmake --install /tmp/Livox-SDK2/build
