@@ -13,8 +13,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 按需增减：这些是当前仍常用/受支持的 ROS 2 发行版
-        ros_distro: [ humble, iron, jazzy, kilted, rolling ]
+        # CI targets supported ROS 2 LTS distributions.
+        ros_distro: [ humble, jazzy, lyrical ]
 
     # 直接用官方 Docker Hub 的 ROS 镜像（例如 ros:humble）
     container:
@@ -67,7 +67,8 @@ jobs:
 
           cd /root/ws
 
-          colcon build --event-handlers console_direct+ --packages-select fast_livox_ros_driver
+          colcon build --event-handlers console_direct+ --packages-select fast_livox_ros_driver \
+            --cmake-args -DBUILD_TESTING=ON
 
       - name: Test
         shell: bash

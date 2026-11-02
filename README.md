@@ -24,17 +24,20 @@ as a reference for expected CPU usage improvements.
 
 ## Supported ROS 2 Distros and Platforms
 
-This package targets ROS 2 (Foxy/Iron/Humble/Rolling and newer). It is
-primarily tested on Linux. Other platforms (Windows/macOS) are not tested.
+This package targets supported ROS 2 LTS distributions: Humble, Jazzy and
+Lyrical. CI builds and runs the test suite on Linux using the official ROS
+container images for the following Ubuntu versions. Other platforms
+(Windows/macOS) are not tested.
 
-| ROS 2 distro | Build & test |
+[![ROS 2 Build & Test](https://github.com/zz990099/fast_livox_ros_driver/actions/workflows/ci_ros2_build_test.yml/badge.svg?branch=master&event=push)](https://github.com/zz990099/fast_livox_ros_driver/actions/workflows/ci_ros2_build_test.yml)
+
+The badge shows the overall workflow status across all three distributions.
+
+| ROS 2 LTS distro | Ubuntu |
 |---|---|
-| humble | ![humble](https://github.com/zz990099/fast_livox_ros_driver/actions/workflows/ci_ros2_build_test.yml/badge.svg?branch=master&event=push) |
-| iron | ![iron](https://github.com/zz990099/fast_livox_ros_driver/actions/workflows/ci_ros2_build_test.yml/badge.svg?branch=master&event=push) |
-| jazzy | ![jazzy](https://github.com/zz990099/fast_livox_ros_driver/actions/workflows/ci_ros2_build_test.yml/badge.svg?branch=master&event=push) |
-| kilted | ![kilted](https://github.com/zz990099/fast_livox_ros_driver/actions/workflows/ci_ros2_build_test.yml/badge.svg?branch=master&event=push) |
-| rolling | ![rolling](https://github.com/zz990099/fast_livox_ros_driver/actions/workflows/ci_ros2_build_test.yml/badge.svg?branch=master&event=push) |
-
+| Humble | 22.04 (Jammy) |
+| Jazzy | 24.04 (Noble) |
+| Lyrical | 26.04 (Resolute) |
 
 ## Building from source
 
