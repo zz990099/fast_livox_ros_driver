@@ -41,14 +41,14 @@ The badge shows the overall workflow status across all three distributions.
 
 ## Building from source
 
-1. Build and install [`Livox-SDK2`](https://github.com/Livox-SDK/Livox-SDK2). Please follow the guidance of installation in the [Livox-SDK2/README.md](https://github.com/Livox-SDK/Livox-SDK2/blob/master/README.md).
+1. Build and install the official [`Livox-SDK2 v1.3.1`](https://github.com/Livox-SDK/Livox-SDK2/releases/tag/v1.3.1), matching the version used in CI. See the [versioned SDK instructions](https://github.com/Livox-SDK/Livox-SDK2/blob/v1.3.1/README.md).
 
 ```bash
-git clone https://github.com/Livox-SDK/Livox-SDK2.git
+git clone --depth 1 --branch v1.3.1 https://github.com/Livox-SDK/Livox-SDK2.git
 cd ./Livox-SDK2/
 mkdir build
 cd build
-cmake .. && make -j
+cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5 && make -j
 sudo make install
 ```
 
