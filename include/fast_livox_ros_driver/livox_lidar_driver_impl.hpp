@@ -16,6 +16,7 @@
 
 #include <livox_lidar_def.h>
 
+#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -34,9 +35,6 @@ namespace fast_livox_ros_driver
  */
 struct LivoxDriverConfig
 {
-  /** @brief IPv4 address of the target LiDAR device (e.g. "192.168.1.10"). */
-  std::string lidar_ip;
-
   /**
   * @brief Path to the Livox SDK configuration file.
   *
@@ -111,9 +109,6 @@ public:
   const std::string & sdk_version() const noexcept;
 
 private:
-  // NOTE: Some helper methods are made protected (see below) to allow unit
-  // testing without requiring hardware access.
-
   struct CloudPointXYZIT
   {
     float x;
@@ -133,6 +128,12 @@ private:
     float acc_y;
     float acc_z;
   };
+
+  /** @brief Atomically bind or check the SDK-selected device handle. */
+  bool accept_handle(uint32_t handle);
+
+  static void GlobalInfoChangeCallback(
+    uint32_t handle, const LivoxLidarInfo * info, void * client_data);
 
   /**
    * @brief Static SDK entry point for pointcloud packets.
@@ -182,20 +183,6 @@ private:
    */
   void publish_pointcloud_if_ready();
 
-protected:
-  /**
-   * @brief Encode an IPv4 address into a 32-bit SDK handle.
-   *
-   * The current implementation packs octets in little-endian order:
-   * handle = o1<<0 | o2<<8 | o3<<16 | o4<<24.
-   *
-   * @param ip IPv4 string.
-   * @return 32-bit handle.
-   * @throws std::runtime_error if @p ip is not a valid IPv4 string.
-   */
-  uint32_t get_handle_from_ip(const std::string & ip) const;
-
-private:
   /** @brief Compute data payload size (bytes) of a Livox ethernet packet. */
   std::size_t get_eth_packet_byte_size(const LivoxLidarEthernetPacket * data) const;
 
@@ -236,8 +223,9 @@ private:
   /** @brief Optional callback to deliver decoded IMU messages. */
   ImuCallback imu_callback_;
 
-  /** @brief Cached SDK handle derived from lidar_ip; used to filter packets. */
-  uint32_t self_handle_{0};
+  /** @brief Bound SDK handle; zero means waiting for a device notification or valid data. */
+  std::atomic<uint32_t> self_handle_{0};
+  std::atomic<bool> extra_device_reported_{false};
 
   /** @brief SDK init state; guards start/stop idempotency. */
   bool sdk_initialized_{false};

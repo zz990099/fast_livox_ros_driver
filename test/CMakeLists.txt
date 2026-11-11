@@ -13,12 +13,19 @@ target_link_libraries(${PROJECT_NAME}_gtest_main PUBLIC
   rclcpp::rclcpp
 )
 
-ament_add_gtest(test_ipv4_handle
-  test_ipv4_handle.cpp
+# Compile the real implementation with a deterministic SDK double to exercise
+# discovery during Init, filtering, and cleanup without sockets or hardware.
+ament_add_gtest(test_sdk_binding
+  test_sdk_binding.cpp
+  ../src/livox_lidar_driver_impl.cpp
 )
-target_link_libraries(test_ipv4_handle
-  ${PROJECT_NAME}
+target_include_directories(test_sdk_binding PRIVATE
+  ../include
+  ${LIVOX_LIDAR_SDK_INCLUDE_DIR}
+)
+target_link_libraries(test_sdk_binding
   ${PROJECT_NAME}_gtest_main
+  ${sensor_msgs_TARGETS}
 )
 
 ament_add_gtest(test_driver_config_validation

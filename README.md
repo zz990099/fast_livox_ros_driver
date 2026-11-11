@@ -71,10 +71,37 @@ source install/setup.bash
 
 ## Configuration & Parameters
 
-The node exposes several parameters to configure networking, topics and QoS.
+Each node supports exactly one lidar. Single-node multi-lidar operation is
+unsupported. Run each lidar in a separate process with its own SDK JSON,
+topics, and frame_id. Multiple driver components in one process are rejected
+because the SDK uses process-global callbacks.
+
+Set exactly one explicit lidar IP in the SDK JSON using
+`MID360.host_net_info[0].lidar_ip`, as shown in
+[`config/MID360_config.json`](config/MID360_config.json). The array must contain
+one IP. Use `host_ip` for the receiving computer and remove generic discovery
+entries that have no explicit lidar IP. For other devices, use the model key
+recognized by SDK v1.3.1.
+
+The driver passes the JSON path directly to the SDK without parsing the file.
+It binds the first valid SDK device-info handle or the first supported
+pointcloud/IMU data callback handle, then accepts only that handle.
+Binding from SDK-selected data also supports receiving-only configurations
+(`master_sdk: false`), which do not emit device-info notifications in v1.3.1.
+Empty pointcloud packets, unsupported data types, and zero handles cannot bind. Additional devices
+are ignored and reported once per start. The driver cannot validate the
+number of configured devices, so a JSON containing multiple IPs is unsupported
+even when only one device is currently online. Stop/start clears the binding
+and accumulated pointcloud data.
+
+When migrating, remove the ROS `lidar_ip` parameter and move the device IP from
+the old top-level `lidar_configs[].ip` into the SDK-native
+`host_net_info[].lidar_ip` array. SDK v1.3.1 does not use the old top-level
+field to select a device. Update both files together.
+
+The node exposes the following ROS parameters.
 
 - `frame_id` (string): TF frame used for published messages.
-- `lidar_ip` (string): IP address of the Livox device.
 - `config_file_path` (string): Path to a Livox SDK configuration file.
 - `pointcloud_topic` (string): Topic name for pointcloud output (default: `/livox/lidar`).
 - `imu_topic` (string): Topic name for IMU output (default: `/livox/imu`).
@@ -100,10 +127,14 @@ ros2 run fast_livox_ros_driver fast_livox_ros_driver_node --ros-args --params-fi
 Use the packaged launch file to start the node with example params and topic remapping:
 
 ```bash
-ros2 launch fast_livox_ros_driver driver.launch.py
+ros2 launch fast_livox_ros_driver fast_livox_driver.launch.py
 ```
 
-To run multiple instances, remap the namespace for each instance.
+For multiple processes, give each a distinct SDK config path through
+`livox_config_file:=/path/to/lidar.json`. Configure distinct topics and frame
+IDs in each ROS parameter file using `params_file:=/path/to/params.yaml`.
+The default topics are absolute, so a namespace alone does not separate them.
+Plan host UDP ports for the processes to avoid socket conflicts.
 
 ## Testing
 
