@@ -129,6 +129,9 @@ private:
     float acc_z;
   };
 
+  /** @brief Atomically bind or check the SDK-selected device handle. */
+  bool accept_handle(uint32_t handle);
+
   static void GlobalInfoChangeCallback(
     uint32_t handle, const LivoxLidarInfo * info, void * client_data);
 
@@ -220,7 +223,7 @@ private:
   /** @brief Optional callback to deliver decoded IMU messages. */
   ImuCallback imu_callback_;
 
-  /** @brief Bound SDK handle; zero means waiting for a device notification. */
+  /** @brief Bound SDK handle; zero means waiting for a device notification or valid data. */
   std::atomic<uint32_t> self_handle_{0};
   std::atomic<bool> extra_device_reported_{false};
 

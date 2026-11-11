@@ -138,14 +138,20 @@ protected:
   int imus = 0;
 };
 
-TEST_F(SdkBindingTest, waits_for_info_and_filters_both_streams)
+TEST_F(SdkBindingTest, invalid_data_cannot_bind_and_info_filters_both_streams)
 {
   auto impl = driver();
   impl->start();
-  send_cloud(11);
-  send_imu(11);
   send_cloud(0);
   send_imu(0);
+  auto bytes = point_packet();
+  auto * packet = reinterpret_cast<LivoxLidarEthernetPacket *>(bytes.data());
+  packet->data_type = 255;
+  cloud_callback(22, 0, packet, cloud_context);
+  imu_callback(22, 0, packet, imu_context);
+  packet->data_type = kLivoxLidarCartesianCoordinateHighData;
+  packet->dot_num = 0;
+  cloud_callback(22, 0, packet, cloud_context);
   EXPECT_TRUE(clouds.empty());
   EXPECT_EQ(imus, 0);
 
@@ -157,6 +163,33 @@ TEST_F(SdkBindingTest, waits_for_info_and_filters_both_streams)
   send_imu(11);
   ASSERT_EQ(clouds.size(), 1U);
   EXPECT_EQ(clouds.front()->width, 1U);
+  EXPECT_EQ(imus, 1);
+}
+
+TEST_F(SdkBindingTest, receiving_only_cloud_binds_without_info_notification)
+{
+  auto impl = driver();
+  impl->start();
+  send_cloud(11);
+  notify(22);
+  send_cloud(22);
+  send_imu(22);
+  send_imu(11);
+  ASSERT_EQ(clouds.size(), 1U);
+  EXPECT_EQ(clouds.front()->width, 1U);
+  EXPECT_EQ(imus, 1);
+}
+
+TEST_F(SdkBindingTest, receiving_only_imu_binds_without_info_notification)
+{
+  auto impl = driver();
+  impl->start();
+  send_imu(11);
+  send_cloud(22);
+  send_imu(22);
+  notify(22);
+  send_cloud(11);
+  ASSERT_EQ(clouds.size(), 1U);
   EXPECT_EQ(imus, 1);
 }
 
@@ -191,12 +224,10 @@ TEST_F(SdkBindingTest, stop_clears_binding_and_buffer_before_restart)
 
   init_handle = 0;
   impl->start();
+  const int previous_imus = imus;
+  send_cloud(22);
   send_cloud(11);
   send_imu(11);
-  EXPECT_EQ(clouds.size(), 1U);
-  const int previous_imus = imus;
-  notify(22);
-  send_cloud(22);
   send_imu(22);
   ASSERT_EQ(clouds.size(), 2U);
   EXPECT_EQ(clouds.back()->width, 1U);
@@ -219,12 +250,10 @@ TEST_F(SdkBindingTest, failed_init_removes_callbacks_and_allows_retry)
   init_success = true;
   init_handle = 0;
   impl->start();
+  send_imu(22);
   send_cloud(11);
   send_imu(11);
   EXPECT_TRUE(clouds.empty());
-  EXPECT_EQ(imus, 0);
-  notify(22);
-  send_imu(22);
   EXPECT_EQ(imus, 1);
 }
 

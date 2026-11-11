@@ -84,8 +84,11 @@ entries that have no explicit lidar IP. For other devices, use the model key
 recognized by SDK v1.3.1.
 
 The driver passes the JSON path directly to the SDK without parsing the file.
-It binds the first valid device-info callback handle and drops pointcloud and
-IMU packets until binding, then accepts only that handle. Additional devices
+It binds the first valid SDK device-info handle or the first supported
+pointcloud/IMU data callback handle, then accepts only that handle.
+Binding from SDK-selected data also supports receiving-only configurations
+(`master_sdk: false`), which do not emit device-info notifications in v1.3.1.
+Empty pointcloud packets, unsupported data types, and zero handles cannot bind. Additional devices
 are ignored and reported once per start. The driver cannot validate the
 number of configured devices, so a JSON containing multiple IPs is unsupported
 even when only one device is currently online. Stop/start clears the binding

@@ -33,7 +33,7 @@ namespace fast_livox_ros_driver
 // 1) start(): initializes the Livox SDK with a config file and registers global
 //    callbacks (C style) that forward into this instance.
 // 2) SDK callbacks deliver ethernet packets (pointcloud / IMU). We validate the
-//    packet pointers and filter by the handle bound by the device info callback.
+//    packet pointers and filter by the handle bound by SDK device info or valid data callbacks.
 // 3) Pointcloud packets are appended into a preconfigured PointCloud2 message.
 //    Publishing is throttled by kPointCloudPublishInterval to reduce overhead.
 // 4) IMU packets are converted to sensor_msgs::msg::Imu and forwarded
@@ -167,19 +167,30 @@ void LivoxLidarDriverImplementation::GlobalInfoChangeCallback(
     return;
   }
 
+  impl->accept_handle(handle);
+}
+
+bool LivoxLidarDriverImplementation::accept_handle(uint32_t handle)
+{
+  if (handle == 0) {
+    return false;
+  }
   uint32_t expected = 0;
-  if (impl->self_handle_.compare_exchange_strong(expected, handle)) {
+  if (self_handle_.compare_exchange_strong(expected, handle)) {
     RCLCPP_INFO(
-      rclcpp::get_logger("fast_livox_ros_driver"),
-      "Bound lidar handle=%u ip='%.*s' sn='%.*s'",
-      handle, static_cast<int>(sizeof(info->lidar_ip)), info->lidar_ip,
-      static_cast<int>(sizeof(info->sn)), info->sn);
-  } else if (expected != handle && !impl->extra_device_reported_.exchange(true)) {
+      rclcpp::get_logger("fast_livox_ros_driver"), "Bound lidar SDK handle=%u", handle);
+    return true;
+  }
+  if (expected == handle) {
+    return true;
+  }
+  if (!extra_device_reported_.exchange(true)) {
     RCLCPP_ERROR(
       rclcpp::get_logger("fast_livox_ros_driver"),
       "Ignoring additional lidar handle=%u. Single-node multi-lidar is unsupported. "
       "Configure exactly one explicit lidar IP in the SDK JSON.", handle);
   }
+  return false;
 }
 
 void LivoxLidarDriverImplementation::GlobalPointCloudCallback(
@@ -213,7 +224,7 @@ void LivoxLidarDriverImplementation::handle_point_cloud_packet(
 {
   (void)dev_type;
   // Ignore packets from other devices and invalid packet pointers.
-  if (data == nullptr || data->data == nullptr || handle == 0 || self_handle_.load() != handle) {
+  if (data == nullptr || data->data == nullptr) {
     return;
   }
 
@@ -223,6 +234,12 @@ void LivoxLidarDriverImplementation::handle_point_cloud_packet(
   }
 
   if (data->dot_num == 0U) {
+    return;
+  }
+
+  // Receiving-only SDK configurations do not emit device-info notifications.
+  // The SDK has already selected the source using its explicit-IP config.
+  if (data->data_type != kLivoxLidarCartesianCoordinateHighData || !accept_handle(handle)) {
     return;
   }
 
@@ -254,7 +271,11 @@ void LivoxLidarDriverImplementation::handle_imu_packet(
 {
   (void)dev_type;
   // Ignore packets from other devices and invalid packet pointers.
-  if (data == nullptr || data->data == nullptr || handle == 0 || self_handle_.load() != handle) {
+  if (data == nullptr || data->data == nullptr) {
+    return;
+  }
+
+  if (data->data_type != kLivoxLidarImuData || !accept_handle(handle)) {
     return;
   }
 
