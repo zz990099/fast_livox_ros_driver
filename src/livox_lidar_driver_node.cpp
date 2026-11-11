@@ -50,7 +50,6 @@ LivoxLidarDriverNode::~LivoxLidarDriverNode()
 void LivoxLidarDriverNode::declare_parameters()
 {
   this->declare_parameter<std::string>("frame_id", "livox_frame");
-  this->declare_parameter<std::string>("lidar_ip", "");
   this->declare_parameter<std::string>("config_file_path", "");
   this->declare_parameter<std::string>("pointcloud_topic", "/livox/lidar");
   this->declare_parameter<std::string>("imu_topic", "/livox/imu");
@@ -61,7 +60,6 @@ void LivoxLidarDriverNode::declare_parameters()
 void LivoxLidarDriverNode::load_parameters()
 {
   frame_id_ = this->get_parameter("frame_id").as_string();
-  driver_config_.lidar_ip = this->get_parameter("lidar_ip").as_string();
   driver_config_.config_file_path = this->get_parameter("config_file_path").as_string();
   pointcloud_topic_ = this->get_parameter("pointcloud_topic").as_string();
   imu_topic_ = this->get_parameter("imu_topic").as_string();
@@ -70,9 +68,6 @@ void LivoxLidarDriverNode::load_parameters()
 
   if (frame_id_.empty()) {
     throw std::runtime_error("Parameter 'frame_id' must not be empty.");
-  }
-  if (driver_config_.lidar_ip.empty()) {
-    throw std::runtime_error("Parameter 'lidar_ip' must not be empty.");
   }
   if (driver_config_.config_file_path.empty()) {
     throw std::runtime_error("Parameter 'config_file_path' must not be empty.");
@@ -107,9 +102,9 @@ void LivoxLidarDriverNode::start_driver()
   // Print a single startup log line with the resolved runtime configuration.
   RCLCPP_INFO(
     this->get_logger(),
-    "fast_livox_ros_driver started. lidar_ip='%s' frame_id='%s' "
+    "fast_livox_ros_driver started. config_file_path='%s' frame_id='%s' "
     "sdk_version='%s' pointcloud_topic='%s' imu_topic='%s'",
-    driver_config_.lidar_ip.c_str(),
+    driver_config_.config_file_path.c_str(),
     frame_id_.c_str(),
     driver_->sdk_version().c_str(),
     pointcloud_topic_.c_str(),

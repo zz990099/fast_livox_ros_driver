@@ -17,12 +17,12 @@
 #include <livox_lidar_api.h>
 
 #include <chrono>
-#include <regex>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <utility>
 
-#include "rclcpp/time.hpp"
+#include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/point_field.hpp"
 
 namespace fast_livox_ros_driver
@@ -33,7 +33,7 @@ namespace fast_livox_ros_driver
 // 1) start(): initializes the Livox SDK with a config file and registers global
 //    callbacks (C style) that forward into this instance.
 // 2) SDK callbacks deliver ethernet packets (pointcloud / IMU). We validate the
-//    packet pointers and filter by device handle derived from lidar_ip.
+//    packet pointers and filter by the handle bound by the device info callback.
 // 3) Pointcloud packets are appended into a preconfigured PointCloud2 message.
 //    Publishing is throttled by kPointCloudPublishInterval to reduce overhead.
 // 4) IMU packets are converted to sensor_msgs::msg::Imu and forwarded
@@ -42,15 +42,16 @@ namespace fast_livox_ros_driver
 namespace
 {
 
+// SDK callbacks and initialization are process-global. Serialize ownership.
+std::mutex sdk_lifecycle_mutex;
+LivoxLidarDriverImplementation * sdk_owner = nullptr;
+
 // Publish throttling interval. The driver aggregates points into a PointCloud2
 // and publishes at this interval to balance latency and CPU load.
 constexpr auto kPointCloudPublishInterval = std::chrono::milliseconds{100};
 
 // Upper bound for internal point buffer to avoid unbounded growth.
 constexpr std::size_t kMaxPointCloudCapacity = 50000U;
-constexpr std::size_t kIpv4OctetCount = 4U;
-constexpr std::size_t kIpv4RegexMatchCount = kIpv4OctetCount + 1U;
-constexpr int kBitsPerOctet = 8;
 constexpr uint64_t kHundredNanosecondsToNanoseconds = 100ULL;
 constexpr uint32_t kPointCloudHeight = 1U;
 constexpr uint32_t kPointCloudFieldCount = 6U;
@@ -74,9 +75,6 @@ LivoxLidarDriverImplementation::LivoxLidarDriverImplementation(
   pointcloud_callback_(std::move(pointcloud_callback)),
   imu_callback_(std::move(imu_callback))
 {
-  if (config_.lidar_ip.empty()) {
-    throw std::runtime_error("Parameter 'lidar_ip' must not be empty.");
-  }
   if (config_.config_file_path.empty()) {
     throw std::runtime_error("Parameter 'config_file_path' must not be empty.");
   }
@@ -84,7 +82,6 @@ LivoxLidarDriverImplementation::LivoxLidarDriverImplementation(
     throw std::runtime_error("Point cloud callback must not be empty.");
   }
 
-  self_handle_ = get_handle_from_ip(config_.lidar_ip);
   pointcloud_msg_ = create_pointcloud_msg();
 }
 
@@ -95,8 +92,13 @@ LivoxLidarDriverImplementation::~LivoxLidarDriverImplementation()
 
 void LivoxLidarDriverImplementation::start()
 {
+  std::lock_guard<std::mutex> lock(sdk_lifecycle_mutex);
   if (sdk_initialized_) {
     return;
+  }
+
+  if (sdk_owner != nullptr) {
+    throw std::runtime_error("Only one Livox driver instance is supported per process.");
   }
 
   LivoxLidarSdkVer sdk_ver{};
@@ -107,19 +109,30 @@ void LivoxLidarDriverImplementation::start()
   // Disable SDK console logger to keep ROS logs clean.
   DisableLivoxSdkConsoleLogger();
 
+  self_handle_.store(0);
+  extra_device_reported_.store(false);
+  // v1.3.1 starts discovery during Init and does not replay missed notifications.
+  SetLivoxLidarInfoChangeCallback(&LivoxLidarDriverImplementation::GlobalInfoChangeCallback, this);
+  SetLivoxLidarPointCloudCallBack(&LivoxLidarDriverImplementation::GlobalPointCloudCallback, this);
+  SetLivoxLidarImuDataCallback(&LivoxLidarDriverImplementation::GlobalImuCallback, this);
+
   if (!LivoxLidarSdkInit(config_.config_file_path.c_str())) {
+    SetLivoxLidarInfoChangeCallback(nullptr, nullptr);
+    SetLivoxLidarPointCloudCallBack(nullptr, nullptr);
+    SetLivoxLidarImuDataCallback(nullptr, nullptr);
+    self_handle_.store(0);
     throw std::runtime_error(
             "Failed to initialize Livox lidar SDK with config file: " +
             config_.config_file_path);
   }
 
   sdk_initialized_ = true;
-  SetLivoxLidarPointCloudCallBack(&LivoxLidarDriverImplementation::GlobalPointCloudCallback, this);
-  SetLivoxLidarImuDataCallback(&LivoxLidarDriverImplementation::GlobalImuCallback, this);
+  sdk_owner = this;
 }
 
 void LivoxLidarDriverImplementation::stop()
 {
+  std::lock_guard<std::mutex> lock(sdk_lifecycle_mutex);
   if (!sdk_initialized_) {
     return;
   }
@@ -127,6 +140,9 @@ void LivoxLidarDriverImplementation::stop()
   // Uninitialize SDK and reset internal state.
   LivoxLidarSdkUninit();
   sdk_initialized_ = false;
+  sdk_owner = nullptr;
+  self_handle_.store(0);
+  extra_device_reported_.store(false);
   pointcloud_msg_ = create_pointcloud_msg();
   last_publish_time_ = std::chrono::system_clock::time_point{};
 }
@@ -139,6 +155,29 @@ bool LivoxLidarDriverImplementation::is_running() const noexcept
 const std::string & LivoxLidarDriverImplementation::sdk_version() const noexcept
 {
   return sdk_version_;
+}
+
+void LivoxLidarDriverImplementation::GlobalInfoChangeCallback(
+  uint32_t handle, const LivoxLidarInfo * info, void * client_data)
+{
+  auto * impl = static_cast<LivoxLidarDriverImplementation *>(client_data);
+  if (impl == nullptr || info == nullptr || handle == 0) {
+    return;
+  }
+
+  uint32_t expected = 0;
+  if (impl->self_handle_.compare_exchange_strong(expected, handle)) {
+    RCLCPP_INFO(
+      rclcpp::get_logger("fast_livox_ros_driver"),
+      "Bound lidar handle=%u ip='%.*s' sn='%.*s'",
+      handle, static_cast<int>(sizeof(info->lidar_ip)), info->lidar_ip,
+      static_cast<int>(sizeof(info->sn)), info->sn);
+  } else if (expected != handle && !impl->extra_device_reported_.exchange(true)) {
+    RCLCPP_ERROR(
+      rclcpp::get_logger("fast_livox_ros_driver"),
+      "Ignoring additional lidar handle=%u. Single-node multi-lidar is unsupported. "
+      "Configure exactly one explicit lidar IP in the SDK JSON.", handle);
+  }
 }
 
 void LivoxLidarDriverImplementation::GlobalPointCloudCallback(
@@ -172,7 +211,7 @@ void LivoxLidarDriverImplementation::handle_point_cloud_packet(
 {
   (void)dev_type;
   // Ignore packets from other devices and invalid packet pointers.
-  if (data == nullptr || data->data == nullptr || self_handle_ != handle) {
+  if (data == nullptr || data->data == nullptr || (handle == 0 || self_handle_.load() != handle)) {
     return;
   }
 
@@ -213,7 +252,7 @@ void LivoxLidarDriverImplementation::handle_imu_packet(
 {
   (void)dev_type;
   // Ignore packets from other devices and invalid packet pointers.
-  if (data == nullptr || data->data == nullptr || self_handle_ != handle) {
+  if (data == nullptr || data->data == nullptr || (handle == 0 || self_handle_.load() != handle)) {
     return;
   }
 
@@ -248,25 +287,6 @@ void LivoxLidarDriverImplementation::publish_pointcloud_if_ready()
   last_publish_time_ = current_time;
 
   pointcloud_msg_ = create_pointcloud_msg();
-}
-
-uint32_t LivoxLidarDriverImplementation::get_handle_from_ip(const std::string & ip) const
-{
-  const std::regex ip_regex(R"((\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3}))");
-  std::smatch ip_match;
-  if (!std::regex_match(ip, ip_match, ip_regex) || ip_match.size() != kIpv4RegexMatchCount) {
-    throw std::runtime_error("Invalid IP address: " + ip);
-  }
-
-  uint32_t handle = 0;
-  for (std::size_t i = 1; i <= kIpv4OctetCount; ++i) {
-    const int octet = std::stoi(ip_match[static_cast<std::size_t>(i)].str());
-    if (octet < 0 || octet > 255) {
-      throw std::runtime_error("Invalid IP address: " + ip);
-    }
-    handle += static_cast<uint32_t>(octet) << (kBitsPerOctet * (i - 1U));
-  }
-  return handle;
 }
 
 std::size_t LivoxLidarDriverImplementation::get_eth_packet_byte_size(

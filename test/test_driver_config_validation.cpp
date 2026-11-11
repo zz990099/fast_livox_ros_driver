@@ -23,24 +23,9 @@
 namespace fast_livox_ros_driver
 {
 
-TEST(test_driver_config_validation, throws_on_empty_lidar_ip)
-{
-  LivoxDriverConfig cfg;
-  cfg.lidar_ip = "";
-  cfg.config_file_path = "/tmp/livox.json";
-
-  auto pc_cb = [](sensor_msgs::msg::PointCloud2::SharedPtr) {};
-  auto imu_cb = [](sensor_msgs::msg::Imu::SharedPtr) {};
-
-  EXPECT_THROW(
-    (void)std::make_unique<LivoxLidarDriverImplementation>(cfg, pc_cb, imu_cb),
-    std::runtime_error);
-}
-
 TEST(test_driver_config_validation, throws_on_empty_config_file_path)
 {
   LivoxDriverConfig cfg;
-  cfg.lidar_ip = "192.168.1.10";
   cfg.config_file_path = "";
 
   auto pc_cb = [](sensor_msgs::msg::PointCloud2::SharedPtr) {};
@@ -54,7 +39,6 @@ TEST(test_driver_config_validation, throws_on_empty_config_file_path)
 TEST(test_driver_config_validation, throws_on_empty_pointcloud_callback)
 {
   LivoxDriverConfig cfg;
-  cfg.lidar_ip = "192.168.1.10";
   cfg.config_file_path = "/tmp/livox.json";
 
   LivoxLidarDriverImplementation::PointCloudCallback pc_cb;

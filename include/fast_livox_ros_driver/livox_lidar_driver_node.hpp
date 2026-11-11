@@ -36,7 +36,6 @@ namespace fast_livox_ros_driver
  *
  * Parameters:
  * - frame_id (string): frame used for outgoing messages.
- * - lidar_ip (string): target device IP.
  * - config_file_path (string): Livox SDK config file.
  * - pointcloud_topic (string): output pointcloud topic.
  * - imu_topic (string): output IMU topic.
