@@ -37,8 +37,8 @@ int uninit_count = 0;
 void notify(uint32_t handle)
 {
   LivoxLidarInfo info{};
-  std::strcpy(info.lidar_ip, "192.168.1.12");
-  std::strcpy(info.sn, "test-device");
+  std::memcpy(info.lidar_ip, "192.168.1.12", sizeof("192.168.1.12"));
+  std::memcpy(info.sn, "test-device", sizeof("test-device"));
   ASSERT_NE(info_callback, nullptr);
   info_callback(handle, &info, info_context);
 }

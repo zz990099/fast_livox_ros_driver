@@ -109,7 +109,6 @@ public:
   const std::string & sdk_version() const noexcept;
 
 private:
-
   struct CloudPointXYZIT
   {
     float x;

@@ -111,6 +111,8 @@ void LivoxLidarDriverImplementation::start()
 
   self_handle_.store(0);
   extra_device_reported_.store(false);
+  pointcloud_msg_ = create_pointcloud_msg();
+  last_publish_time_ = std::chrono::system_clock::time_point{};
   // v1.3.1 starts discovery during Init and does not replay missed notifications.
   SetLivoxLidarInfoChangeCallback(&LivoxLidarDriverImplementation::GlobalInfoChangeCallback, this);
   SetLivoxLidarPointCloudCallBack(&LivoxLidarDriverImplementation::GlobalPointCloudCallback, this);
@@ -211,7 +213,7 @@ void LivoxLidarDriverImplementation::handle_point_cloud_packet(
 {
   (void)dev_type;
   // Ignore packets from other devices and invalid packet pointers.
-  if (data == nullptr || data->data == nullptr || (handle == 0 || self_handle_.load() != handle)) {
+  if (data == nullptr || data->data == nullptr || handle == 0 || self_handle_.load() != handle) {
     return;
   }
 
@@ -252,7 +254,7 @@ void LivoxLidarDriverImplementation::handle_imu_packet(
 {
   (void)dev_type;
   // Ignore packets from other devices and invalid packet pointers.
-  if (data == nullptr || data->data == nullptr || (handle == 0 || self_handle_.load() != handle)) {
+  if (data == nullptr || data->data == nullptr || handle == 0 || self_handle_.load() != handle) {
     return;
   }
 
