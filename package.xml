@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>fast_livox_ros_driver</name>
-  <version>1.0.0</version>
+  <version>1.2.0</version>
   <description>Lightweight ROS 2 Livox lidar driver package with direct PointCloud2 and Imu publication.</description>
   <maintainer email="771647586@qq.com">zz990099</maintainer>
   <license>Apache-2.0</license>
@@ -10,6 +10,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclcpp</depend>
+  <depend>rclcpp_components</depend>
   <depend>rcl_interfaces</depend>
   <depend>sensor_msgs</depend>
 

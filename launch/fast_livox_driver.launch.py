@@ -58,21 +58,19 @@ def generate_launch_description():
         description='Full path to the config file for mid360 lidar',
     )
 
-    load_fast_livox_driver_node = (
-        Node(
-            namespace=namespace,
-            package='fast_livox_ros_driver',
-            executable='fast_livox_ros_driver_node',
-            name='fast_livox_ros_driver',
-            output='screen',
-            parameters=[
-                params_file,
-                {'config_file_path': livox_config_file},
-            ],
-            respawn=use_respawn,
-            respawn_delay=2.0,
-            arguments=['--ros-args', '--log-level', log_level],
-        ),
+    load_fast_livox_driver_node = Node(
+        namespace=namespace,
+        package='fast_livox_ros_driver',
+        executable='fast_livox_ros_driver_node_main',
+        name='fast_livox_ros_driver',
+        output='screen',
+        parameters=[
+            params_file,
+            {'config_file_path': livox_config_file},
+        ],
+        respawn=use_respawn,
+        respawn_delay=2.0,
+        arguments=['--ros-args', '--log-level', log_level],
     )
 
     ld = LaunchDescription()
