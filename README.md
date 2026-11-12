@@ -88,8 +88,8 @@ It binds the first valid SDK device-info handle or the first supported
 pointcloud/IMU data callback handle, then accepts only that handle.
 Binding from SDK-selected data also supports receiving-only configurations
 (`master_sdk: false`), which do not emit device-info notifications in v1.3.1.
-Empty pointcloud packets, unsupported data types, and zero handles cannot bind. Additional devices
-are ignored and reported once per start. The driver cannot validate the
+Empty pointcloud packets, unsupported data types, and zero handles cannot bind.
+Additional devices are ignored and reported once per start. The driver cannot validate the
 number of configured devices, so a JSON containing multiple IPs is unsupported
 even when only one device is currently online. Stop/start clears the binding
 and accumulated pointcloud data.
@@ -112,16 +112,16 @@ See the packaged `config` directory and launch files for example parameter files
 
 ## Running
 
-Run the node directly after sourcing your workspace:
+Run the node directly after sourcing your workspace, with your SDK JSON path:
 
 ```bash
-ros2 run fast_livox_ros_driver fast_livox_ros_driver_node
+ros2 run fast_livox_ros_driver fast_livox_ros_driver_node_main --ros-args -p config_file_path:=/path/to/livox.json
 ```
 
-Or use a params file:
+Or use a ROS parameter file together with the SDK JSON path:
 
 ```bash
-ros2 run fast_livox_ros_driver fast_livox_ros_driver_node --ros-args --params-file /path/to/params.yaml
+ros2 run fast_livox_ros_driver fast_livox_ros_driver_node_main --ros-args --params-file /path/to/params.yaml -p config_file_path:=/path/to/livox.json
 ```
 
 Use the packaged launch file to start the node with example params and topic remapping:

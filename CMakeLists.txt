@@ -103,8 +103,8 @@ install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
 )
 
-ament_export_include_directories(include/${PROJECT_NAME})
+ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME} ${PROJECT_NAME}_node)
-ament_export_dependencies(rclcpp rcl_interfaces sensor_msgs)
+ament_export_dependencies(rclcpp rclcpp_components rcl_interfaces sensor_msgs)
 
 ament_package()

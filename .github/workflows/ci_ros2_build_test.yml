@@ -84,3 +84,28 @@ jobs:
           cd /root/ws
           colcon test --event-handlers console_direct+ --packages-select fast_livox_ros_driver
           colcon test-result --verbose
+
+
+      - name: Check installed entrypoints
+        shell: bash
+        run: |
+          set -eo pipefail
+          source /opt/ros/${{ matrix.ros_distro }}/setup.bash
+          source /root/ws/install/setup.bash
+          ros2 launch fast_livox_ros_driver fast_livox_driver.launch.py --show-args
+          python3 - <<'PYTHON'
+          import os
+          import xml.etree.ElementTree as ET
+          from ament_index_python.packages import get_package_share_directory
+          from ros2run.api import get_executable_path
+
+          package = 'fast_livox_ros_driver'
+          executable = get_executable_path(
+              package_name=package,
+              executable_name='fast_livox_ros_driver_node_main')
+          assert executable and os.access(executable, os.X_OK), executable
+          manifest = ET.parse(os.path.join(
+              get_package_share_directory(package), 'package.xml')).getroot()
+          assert manifest.findtext('version') == '1.2.0'
+          assert 'rclcpp_components' in [dep.text for dep in manifest.findall('depend')]
+          PYTHON
